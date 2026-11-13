@@ -9,12 +9,26 @@
 // Outside the grader, MAKEFUN_OUTPUT_DIR stands in for /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
+const source = join(here, 'entry.png');
 
+// Fail fast with a clear message instead of a bare ENOENT, and verify the
+// copy landed in full: the judge only ever sees the bytes we write.
+if (!existsSync(source)) {
+  throw new Error(`entry.png is missing beside main.ts (looked in ${here})`);
+}
+const bytes = readFileSync(source);
+if (bytes.length === 0) {
+  throw new Error('entry.png is empty, nothing to copy');
+}
 mkdirSync(outDir, { recursive: true });
-writeFileSync(join(outDir, 'entry.png'), readFileSync(join(here, 'entry.png')));
+const target = join(outDir, 'entry.png');
+writeFileSync(target, bytes);
+if (statSync(target).size !== bytes.length) {
+  throw new Error('entry.png was not written in full');
+}
